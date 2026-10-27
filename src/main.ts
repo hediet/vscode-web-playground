@@ -6,16 +6,16 @@ const baseUrl = new URL('.', document.baseURI);
 
 /**
  * Webviews validate that they run on a `{{uuid}}` subdomain (derived from the parent origin).
- * `*.localhost` resolves to loopback in browsers, so locally we can self-host the webview content.
- * Static hosts without wildcard subdomains (e.g. GitHub Pages) fall back to the official CDN endpoint,
- * which requires `commit`/`quality` of a released build in the product configuration.
+ * On plain `localhost`, `{{uuid}}.localhost` resolves to loopback, so the webview content is self-hosted.
+ * Everywhere else (reverse proxies, GitHub Pages) wildcard subdomains are not available, so the
+ * official CDN endpoint for the (insider build) commit of the `vscode` submodule is used.
  */
-function getWebviewEndpoint(): string | undefined {
-	if (location.hostname !== 'localhost') {
-		return undefined;
+function getWebviewEndpoint(): string {
+	if (location.hostname === 'localhost') {
+		const preUrl = new URL('vscode/src/vs/workbench/contrib/webview/browser/pre', baseUrl);
+		return `${preUrl.protocol}//{{uuid}}.${preUrl.host}${preUrl.pathname}`;
 	}
-	const preUrl = new URL('vscode/src/vs/workbench/contrib/webview/browser/pre', baseUrl);
-	return `${preUrl.protocol}//{{uuid}}.${preUrl.host}${preUrl.pathname}`;
+	return `https://{{uuid}}.vscode-cdn.net/insider/${__VSCODE_COMMIT__}/out/vs/workbench/contrib/webview/browser/pre/`;
 }
 
 /**

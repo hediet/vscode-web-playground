@@ -21,6 +21,14 @@ npm run dev     # http://localhost:5280/vscode/
 ```
 
 The first page load takes a while: Vite serves thousands of VS Code source modules on demand.
+The dev server accepts any `Host` (e.g. reverse proxies like `http://5280.<machine>.localhost/vscode/`).
+
+Live: https://hediet.github.io/vscode-web-playground/
+
+## Deploy
+
+`npm run build` creates a static site in `dist/` (base path from `PLAYGROUND_BASE`, default `/vscode/`).
+[deploy-pages.yml](.github/workflows/deploy-pages.yml) builds and publishes it to GitHub Pages on every push to `main`.
 
 ## How it works
 
@@ -40,11 +48,9 @@ Everything goes through VS Code's public embedder API (`create()` from `workbenc
 
 ## Gotchas found so far
 
-* **Webviews need a `{{uuid}}` subdomain.** `pre/index.html` verifies that it runs on a hostname derived from the parent origin. Locally, `{{uuid}}.localhost` works (browsers resolve `*.localhost` to loopback). Static hosts without wildcard subdomains (GitHub Pages) must use the official `vscode-cdn.net` webview endpoint, which only exists for released commits.
+* **Webviews need a `{{uuid}}` subdomain.** `pre/index.html` verifies that it runs on a hostname derived from the parent origin. On plain `localhost`, `{{uuid}}.localhost` works (browsers resolve `*.localhost` to loopback), so the webview content is self-hosted. Everywhere else (reverse proxies, GitHub Pages) the official `vscode-cdn.net` endpoint is used, which only exists for commits that shipped as a build. The submodule must therefore stay on an insider build commit.
 * **Do not block activation on layout commands.** On reload, VS Code restores the `playground:` editor, which waits for the extension activation; layout commands in turn wait for the restore.
 * **`codicon.ttf`** is gitignored in VS Code (copied by its postinstall), so Vite aliases it to `node_modules/@vscode/codicons`.
 * Iframe documents of VS Code are served raw, otherwise Vite injects its client script, which their CSP blocks.
-
-## Next steps
-
-* `vite build` + GitHub Pages deployment (static copy of `vscode/src/**/pre`, built-in extensions, codicons; webview endpoint from the CDN).
+* Vite binds `127.0.0.1` explicitly: on Windows it otherwise binds `::1` only, which IPv4-only forwarders cannot reach.
+* The production build does not include the keyboard layout modules (dynamic import Vite cannot analyze), so keyboard layout detection is unavailable there.

@@ -1,7 +1,8 @@
 import { defineConfig, type Plugin } from 'vite';
 import { rollupEsmUrlPlugin } from '@vscode/rollup-plugin-esm-url';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { execSync } from 'child_process';
+import { existsSync, readdirSync, readFileSync } from 'fs';
+import { join, relative } from 'path';
 
 const vscodeRoot = join(import.meta.dirname, 'vscode');
 
@@ -38,6 +39,19 @@ function injectBuiltinExtensionsPlugin(): Plugin {
 			order: 'pre',
 			handler: html => html.replace('{{WORKBENCH_BUILTIN_EXTENSIONS}}', escapeHtml(JSON.stringify(scan()))),
 		},
+		// The workbench loads built-in extensions from `${_VSCODE_FILE_ROOT}/../../extensions` (= `vscode/extensions`).
+		generateBundle() {
+			for (const name of builtinExtensionNames) {
+				const dir = join(vscodeRoot, 'extensions', name);
+				const files = readdirSync(dir, { recursive: true, withFileTypes: true })
+					.filter(e => e.isFile())
+					.map(e => relative(dir, join(e.parentPath, e.name)).replaceAll('\\', '/'))
+					.filter(f => !/^(src|test|node_modules|build)\//.test(f) && !/^(tsconfig|esbuild|\.).*/.test(f));
+				for (const file of files) {
+					this.emitFile({ type: 'asset', fileName: `vscode/extensions/${name}/${file}`, source: readFileSync(join(dir, file)) });
+				}
+			}
+		},
 	};
 }
 
@@ -67,7 +81,10 @@ function serveRawIframeHtmlPlugin(): Plugin {
 }
 
 export default defineConfig({
-	base: '/vscode/',
+	base: process.env.PLAYGROUND_BASE ?? '/vscode/',
+	define: {
+		__VSCODE_COMMIT__: JSON.stringify(execSync('git rev-parse HEAD', { cwd: vscodeRoot, encoding: 'utf8' }).trim()),
+	},
 	plugins: [
 		rollupEsmUrlPlugin({}),
 		injectBuiltinExtensionsPlugin(),
@@ -86,9 +103,18 @@ export default defineConfig({
 			},
 		},
 	},
+	preview: {
+		port: 5281,
+		strictPort: true,
+		host: '127.0.0.1',
+	},
 	server: {
 		port: 5280,
 		strictPort: true,
+		// Allow access through reverse proxies such as `5280.<devbox>.localhost`.
+		allowedHosts: true,
+		// IPv4 loopback: reachable via `localhost` and by IPv4-only forwarders (Vite otherwise binds `::1` only on Windows).
+		host: '127.0.0.1',
 		watch: {
 			// Only VS Code sources are relevant for HMR; watching the whole submodule is slow and noisy.
 			ignored: path => /[\\/]vscode[\\/](?!src[\\/]|src$)/.test(path.replace(import.meta.dirname, '')) || /node_modules/.test(path),
