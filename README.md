@@ -5,11 +5,11 @@ An injected extension owns the whole experience: it mounts an in-memory file sys
 and syncs its state with the browser URL.
 
 ```
-┌──────────────┬──────────────┐
-│              │  Webview 1   │
-│  foobar.txt  ├──────────────┤
-│              │  Webview 2   │
-└──────────────┴──────────────┘
+┌──────────┬──────────────┬──────────────┐
+│ Explorer │              │  Webview 1   │
+│          │  foobar.txt  ├──────────────┤
+│          │              │  Webview 2   │
+└──────────┴──────────────┴──────────────┘
 ```
 
 ## Run
@@ -42,8 +42,8 @@ Everything goes through VS Code's public embedder API (`create()` from `workbenc
 | [public/playground-extension](public/playground-extension) | The injected web extension (plain CommonJS, no build step). |
 
 * **Extension injection:** `additionalBuiltinExtensions` points at `/vscode/playground-extension/`. VS Code fetches its `package.json` and runs `extension.js` in the web worker extension host.
-* **File system:** the extension registers a `FileSystemProvider` for the `playground` scheme. The workbench opens `playground:/` as its workspace folder and activates the extension via `onFileSystem:playground`.
-* **Layout:** the extension calls `vscode.setEditorLayout` (left group + vertically split right group), opens `foobar.txt` in column 1 and two webview panels in columns 2 and 3.
+* **File system:** the extension registers a `FileSystemProvider` for the `playground` scheme. The workbench opens `playground:/playground` as its workspace folder (shown as `PLAYGROUND` in the explorer) and activates the extension via `onFileSystem:playground`.
+* **Layout:** the extension opens the explorer, calls `vscode.setEditorLayout` (left group + vertically split right group), opens `foobar.txt` in column 1 and two webview panels in columns 2 and 3.
 * **URL access:** the extension host runs in a worker and cannot see the page URL. The host page contributes the commands `playground.host.getUrl` and `playground.host.replaceUrl`; `popstate` is forwarded to the extension command `playground.onDidChangeUrl`.
 
 ## Gotchas found so far

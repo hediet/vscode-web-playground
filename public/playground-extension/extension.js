@@ -2,10 +2,12 @@
 const vscode = require('vscode');
 
 const SCHEME = 'playground';
-const FILE_URI = vscode.Uri.from({ scheme: SCHEME, path: '/foobar.txt' });
+// The workspace folder; its basename is the folder name shown in the explorer.
+const ROOT_URI = vscode.Uri.from({ scheme: SCHEME, path: '/playground' });
+const FILE_URI = vscode.Uri.joinPath(ROOT_URI, 'foobar.txt');
 const DEFAULT_TEXT = 'Hello from foobar.txt!\n\nEdit me: webview 1 renders this text live\nand the browser URL is updated, so you can share or reload it.\n';
 
-/** A flat, in-memory file system: one root folder with files. */
+/** An in-memory file system with a fixed folder (`ROOT_URI`) that contains files only. */
 class MemFS {
 	constructor() {
 		/** @type {Map<string, { data: Uint8Array; ctime: number; mtime: number }>} */
@@ -16,15 +18,19 @@ class MemFS {
 
 	/** @param {vscode.Uri} uri */
 	stat(uri) {
-		if (uri.path === '/') {
+		if (uri.path === '/' || uri.path === ROOT_URI.path) {
 			return { type: vscode.FileType.Directory, ctime: 0, mtime: 0, size: 0 };
 		}
 		const file = this._get(uri);
 		return { type: vscode.FileType.File, ctime: file.ctime, mtime: file.mtime, size: file.data.byteLength };
 	}
 
-	readDirectory() {
-		return [...this.files.keys()].map(path => [path.slice(1), vscode.FileType.File]);
+	/** @param {vscode.Uri} uri */
+	readDirectory(uri) {
+		if (uri.path === '/') {
+			return [[ROOT_URI.path.slice(1), vscode.FileType.Directory]];
+		}
+		return [...this.files.keys()].map(path => [path.slice(ROOT_URI.path.length + 1), vscode.FileType.File]);
 	}
 
 	/** @param {vscode.Uri} uri */
@@ -181,7 +187,8 @@ async function activate(context) {
 
 	const applyLayout = async () => {
 		await vscode.commands.executeCommand('workbench.action.closeAllEditors');
-		await vscode.commands.executeCommand('workbench.action.closeSidebar');
+		// Sidebar with the file explorer showing the `playground:/` workspace folder.
+		await vscode.commands.executeCommand('workbench.view.explorer');
 		await vscode.commands.executeCommand('workbench.action.closePanel');
 		await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar');
 
@@ -192,6 +199,7 @@ async function activate(context) {
 		});
 
 		await vscode.window.showTextDocument(FILE_URI, { viewColumn: vscode.ViewColumn.One, preview: false });
+		await vscode.commands.executeCommand('revealInExplorer', FILE_URI);
 
 		preview = vscode.window.createWebviewPanel('playground.preview', 'Webview 1', { viewColumn: vscode.ViewColumn.Two, preserveFocus: true }, { enableScripts: true });
 		preview.webview.html = previewHtml;

@@ -46,7 +46,7 @@ window.addEventListener('popstate', () => {
 
 create(document.body, {
 	workspaceProvider: {
-		workspace: { folderUri: URI.from({ scheme: 'playground', path: '/' }) },
+		workspace: { folderUri: URI.from({ scheme: 'playground', path: '/playground' }) },
 		trusted: true,
 		open: async () => false,
 	},
