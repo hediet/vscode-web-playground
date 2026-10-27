@@ -1,0 +1,23 @@
+{
+	"name": "playground",
+	"displayName": "Playground",
+	"description": "Controls the VS Code Web Playground: file system, layout and URL state.",
+	"publisher": "vscode-playground",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.90.0"
+	},
+	"browser": "./extension.js",
+	"activationEvents": [
+		"onFileSystem:playground",
+		"*"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "playground.resetLayout",
+				"title": "Playground: Reset Layout"
+			}
+		]
+	}
+}
